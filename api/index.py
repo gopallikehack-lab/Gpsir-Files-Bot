@@ -1,5 +1,6 @@
 import os
 import json
+import html
 import base64
 import random
 from datetime import datetime
@@ -34,6 +35,21 @@ PREMIUM_EMOJIS = {
 }
 
 DIVIDER = "─" * 22
+
+# ==================== REQUIRED CHANNEL / CHAT (force-join) ====================
+# Bot must be an admin (or at least a member) of both for getChatMember to work.
+REQUIRED_CHATS = [
+    {
+        "chat_id": -1004485651677,
+        "title": "GpsirEra Community",
+        "url": "https://t.me/Black_hats_ops",
+    },
+    {
+        "chat_id": -1003927824087,
+        "title": "GpsirEra Community | Chat",
+        "url": "https://t.me/+VXs73pFfyEphMzJl",
+    },
+]
 
 # ==================== REDIS (Upstash REST) ====================
 def _redis_headers():
@@ -102,32 +118,52 @@ def utf16_len(s):
 
 def compose(*segments):
     """
-    Build a (text, entities) pair from segments.
+    Build a (text, entities) pair from segments. Because a message using
+    custom_emoji entities can't ALSO use parse_mode (Telegram rejects the
+    combination), any bold/code formatting here must be its own entity too
+    -- plain "<b>" tags would just show up as literal text.
+
     Each segment is either:
-      - a plain string, or
-      - a tuple (emoji_key,) to insert a premium custom emoji from PREMIUM_EMOJIS
-    Returns text ready to send with entities for the custom emoji.
+      - a plain string (sent as-is, no markup interpretation happens)
+      - ("bold", text) to bold that text
+      - ("code", text) for monospace
+      - (emoji_key,) to insert a premium custom emoji from PREMIUM_EMOJIS
     """
     full_text = ""
     entities = []
     for seg in segments:
         if isinstance(seg, tuple):
-            emoji_key = seg[0]
-            char, custom_id = PREMIUM_EMOJIS[emoji_key]
-            offset = utf16_len(full_text)
-            length = utf16_len(char)
-            entities.append(
-                {
-                    "type": "custom_emoji",
-                    "offset": offset,
-                    "length": length,
-                    "custom_emoji_id": custom_id,
-                }
-            )
-            full_text += char
+            if seg[0] in ("bold", "code"):
+                kind, inner_text = seg
+                offset = utf16_len(full_text)
+                length = utf16_len(inner_text)
+                entities.append({"type": kind, "offset": offset, "length": length})
+                full_text += inner_text
+            else:
+                emoji_key = seg[0]
+                char, custom_id = PREMIUM_EMOJIS[emoji_key]
+                offset = utf16_len(full_text)
+                length = utf16_len(char)
+                entities.append(
+                    {
+                        "type": "custom_emoji",
+                        "offset": offset,
+                        "length": length,
+                        "custom_emoji_id": custom_id,
+                    }
+                )
+                full_text += char
         else:
             full_text += seg
     return full_text, entities
+
+
+def esc(s):
+    """Escape user/file-controlled text before dropping it into an HTML
+    parse_mode message. Filenames or IDs containing <, >, or & would
+    otherwise break the message the same way stray underscores broke
+    Markdown mode."""
+    return html.escape(str(s), quote=False)
 
 
 def tg(method, payload):
@@ -135,7 +171,7 @@ def tg(method, payload):
     return r.json()
 
 
-def send_message(chat_id, text, entities=None, reply_markup=None, parse_mode="Markdown"):
+def send_message(chat_id, text, entities=None, reply_markup=None, parse_mode="HTML"):
     payload = {"chat_id": chat_id, "text": text}
     if entities:
         payload["entities"] = entities
@@ -147,7 +183,7 @@ def send_message(chat_id, text, entities=None, reply_markup=None, parse_mode="Ma
     return tg("sendMessage", payload)
 
 
-def edit_message(chat_id, message_id, text, entities=None, reply_markup=None, parse_mode="Markdown"):
+def edit_message(chat_id, message_id, text, entities=None, reply_markup=None, parse_mode="HTML"):
     payload = {"chat_id": chat_id, "message_id": message_id, "text": text}
     if entities:
         payload["entities"] = entities
@@ -197,6 +233,34 @@ def find_file_by_uid(uid):
         if f["unique_id"] == uid:
             return owner, f
     return None, None
+
+
+def missing_joins(user_id):
+    """Returns the list of required chats the user has NOT joined yet.
+    Empty list = fully joined, gate passes."""
+    missing = []
+    for ch in REQUIRED_CHATS:
+        try:
+            r = tg("getChatMember", {"chat_id": ch["chat_id"], "user_id": user_id})
+            status = r.get("result", {}).get("status")
+            if status not in ("member", "administrator", "creator"):
+                missing.append(ch)
+        except Exception:
+            missing.append(ch)
+    return missing
+
+
+def send_join_prompt(chat_id, missing):
+    rows = [[{"text": f"➕ Join {esc(ch['title'])}", "url": ch["url"]}] for ch in missing]
+    rows.append([btn("✅ I've Joined", "checkjoin")])
+    lines = "\n".join(f"• {esc(c['title'])}" for c in missing)
+    text = (
+        "🔒 <b>Access Locked</b>\n\n"
+        "Please join our official channel and community chat to use this bot:\n\n"
+        f"{lines}\n\n"
+        "After joining, tap the button below."
+    )
+    send_message(chat_id, text, reply_markup=kb(rows))
 
 
 def find_batch_by_id(batch_id):
@@ -254,13 +318,13 @@ def handle_start(chat_id, user_id, args):
 
     if premium:
         text, entities = compose(
-            ("thumbs_up",), " *PREMIUM VAULT*\n",
+            ("thumbs_up",), " ", ("bold", "PREMIUM VAULT"), "\n",
             f"{DIVIDER}\n\n",
             "Welcome back, Premium member.\n",
             "Every feature below is unlocked for you.\n\n",
             ("memo",), " Forward any file → get an instant link\n",
             ("check",), " Use /batch to hand-pick files into one shareable link\n\n",
-            "*Commands*\n",
+            ("bold", "Commands"), "\n",
             "/list – your files\n",
             "/link <id> – get a link\n",
             "/delete <id> – delete a file\n",
@@ -274,22 +338,22 @@ def handle_start(chat_id, user_id, args):
         markup = kb(
             [
                 [btn("📋 My Files", "list"), btn("📦 Build Batch", "batch")],
-                [btn("👑 Premium Status", "premium")],
+                [btn("👑 Premium Status", "premium"), btn("🗑 Delete All Files", "clearall_ask")],
             ]
         )
         send_message(chat_id, text, entities=entities, reply_markup=markup)
     else:
         text = (
-            "🚀 *File Share Bot*\n\n"
+            "🚀 <b>File Share Bot</b>\n\n"
             "Forward any file to me – I'll give you a shareable link!\n\n"
-            "*Commands*\n"
+            "<b>Commands</b>\n"
             "/list – your files\n"
-            "/link <id> – get link\n"
-            "/delete <id> – delete a file\n"
+            "/link &lt;id&gt; – get link\n"
+            "/delete &lt;id&gt; – delete a file\n"
             "/clear – delete all files\n\n"
-            f"⭐ Upgrade to Premium: {DEVELOPER}"
+            f"⭐ Upgrade to Premium: {esc(DEVELOPER)}"
         )
-        markup = kb([[btn("📋 My Files", "list")]])
+        markup = kb([[btn("📋 My Files", "list"), btn("🗑 Delete All Files", "clearall_ask")]])
         send_message(chat_id, text, reply_markup=markup)
 
 
@@ -339,7 +403,7 @@ def handle_forwarded_file(chat_id, user_id, message):
 
     if premium:
         text, entities = compose(
-            ("check",), " *File Saved*\n",
+            ("check",), " ", ("bold", "File Saved"), "\n",
             f"{DIVIDER}\n",
             f"📁 {fname}\n",
             f"💾 {format_size(entry['file_size'])}\n",
@@ -356,8 +420,8 @@ def handle_forwarded_file(chat_id, user_id, message):
     else:
         send_message(
             chat_id,
-            f"✅ *File Saved!*\n\n📁 {fname}\n💾 {format_size(entry['file_size'])}\n🔗 {link}\n\n"
-            f"⭐ Upgrade to Premium: {DEVELOPER}",
+            f"✅ <b>File Saved!</b>\n\n📁 {esc(fname)}\n💾 {format_size(entry['file_size'])}\n🔗 {esc(link)}\n\n"
+            f"⭐ Upgrade to Premium: {esc(DEVELOPER)}",
         )
 
 
@@ -373,12 +437,12 @@ def render_file_list(chat_id, user_id, edit=None):
         return
 
     bot_username = get_me_username()
-    text = f"📁 *Your Files* ({len(files)})\n\n"
+    text = f"📁 <b>Your Files</b> ({len(files)})\n\n"
     for idx, f in enumerate(files):
         line = (
-            f"{idx + 1}. {f['file_name']}\n"
+            f"{idx + 1}. {esc(f['file_name'])}\n"
             f"   💾 {format_size(f['file_size'])}\n"
-            f"   🆔 `{f['unique_id']}`\n"
+            f"   🆔 <code>{esc(f['unique_id'])}</code>\n"
             f"   🔗 https://t.me/{bot_username}?start={f['unique_id']}\n\n"
         )
         if len(text) + len(line) > 3500:
@@ -386,10 +450,11 @@ def render_file_list(chat_id, user_id, edit=None):
             break
         text += line
 
+    markup = kb([[btn("🗑 Delete All Files", "clearall_ask")]])
     if edit:
-        edit_message(chat_id, edit, text)
+        edit_message(chat_id, edit, text, reply_markup=markup)
     else:
-        send_message(chat_id, text)
+        send_message(chat_id, text, reply_markup=markup)
 
 
 def handle_link(chat_id, user_id, args):
@@ -451,10 +516,11 @@ def render_batch_picker(chat_id, user_id, edit=None):
         mark = "✅" if f["unique_id"] in selected else "⬜"
         label = f"{mark} {f['file_name'][:30]}"
         rows.append([btn(label, f"pick_{f['unique_id']}")])
+    rows.append([btn("☑️ Select All", "batchselectall"), btn("⬜ Clear Selection", "batchclearsel")])
     rows.append([btn("📦 Finish Batch", "finishbatch"), btn("❌ Cancel", "cancelbatch")])
 
     text = (
-        f"📦 *Build a Batch*\n\n"
+        f"📦 <b>Build a Batch</b>\n\n"
         f"Selected: {len(selected)}/{len(files)}\n"
         f"Tap files to select/deselect, then press Finish Batch."
     )
@@ -489,10 +555,10 @@ def handle_mybatch(chat_id, user_id):
         send_message(chat_id, "📭 No batches yet.")
         return
     bot_username = get_me_username()
-    text = "📦 *Your Batches*\n\n"
+    text = "📦 <b>Your Batches</b>\n\n"
     for b in batches:
         link = f"https://t.me/{bot_username}?start=batch_{b['batch_id']}"
-        text += f"🆔 `{b['batch_id']}` – {len(b['files'])} files\n🔗 {link}\n\n"
+        text += f"🆔 <code>{esc(b['batch_id'])}</code> – {len(b['files'])} files\n🔗 {esc(link)}\n\n"
     send_message(chat_id, text)
 
 
@@ -504,11 +570,11 @@ def handle_stats(chat_id):
     premium_count = len([u for u in owners if is_premium(int(u))])
     send_message(
         chat_id,
-        f"📊 *Bot Statistics*\n\n"
+        f"📊 <b>Bot Statistics</b>\n\n"
         f"👥 Users: {total_users}\n"
         f"📁 Files: {total_files}\n"
         f"👑 Premium Users: {premium_count}\n"
-        f"👨‍💻 Developer: {DEVELOPER}",
+        f"👨‍💻 Developer: {esc(DEVELOPER)}",
     )
 
 
@@ -520,6 +586,13 @@ def handle_callback(callback):
     uid = str(user_id)
     chat_id = callback["message"]["chat"]["id"]
     message_id = callback["message"]["message_id"]
+
+    # Always allow the "I've joined" recheck button through the gate.
+    if data != "checkjoin" and REQUIRED_CHATS:
+        missing = missing_joins(user_id)
+        if missing:
+            answer_callback(callback_id, "Please join the required channel/chat first.", show_alert=True)
+            return
 
     if data == "list":
         answer_callback(callback_id)
@@ -542,9 +615,9 @@ def handle_callback(callback):
     if data == "premium":
         answer_callback(callback_id)
         if is_premium(user_id):
-            edit_message(chat_id, message_id, f"👑 You are a Premium user! Enjoy all features.\nDev: {DEVELOPER}")
+            edit_message(chat_id, message_id, f"👑 You are a Premium user! Enjoy all features.\nDev: {esc(DEVELOPER)}")
         else:
-            edit_message(chat_id, message_id, f"⭐ You are a Free user. Upgrade: {DEVELOPER}")
+            edit_message(chat_id, message_id, f"⭐ You are a Free user. Upgrade: {esc(DEVELOPER)}")
         return
 
     if data.startswith("copy_"):
@@ -552,7 +625,7 @@ def handle_callback(callback):
         file_uid = data[5:]
         bot_username = get_me_username()
         link = f"https://t.me/{bot_username}?start={file_uid}"
-        edit_message(chat_id, message_id, f"📋 Copy this link:\n{link}")
+        edit_message(chat_id, message_id, f"📋 Copy this link:\n{esc(link)}")
         return
 
     if data.startswith("addbatch_"):
@@ -571,6 +644,25 @@ def handle_callback(callback):
             selected.append(file_uid)
         set_json(f"pick:{uid}", selected)
         answer_callback(callback_id)
+        render_batch_picker(chat_id, user_id, edit=message_id)
+        return
+
+    if data == "batchselectall":
+        if not is_premium(user_id):
+            answer_callback(callback_id, "Premium feature.", show_alert=True)
+            return
+        files = get_json(f"files:{uid}", [])
+        set_json(f"pick:{uid}", [f["unique_id"] for f in files])
+        answer_callback(callback_id, "All files selected")
+        render_batch_picker(chat_id, user_id, edit=message_id)
+        return
+
+    if data == "batchclearsel":
+        if not is_premium(user_id):
+            answer_callback(callback_id, "Premium feature.", show_alert=True)
+            return
+        set_json(f"pick:{uid}", [])
+        answer_callback(callback_id, "Selection cleared")
         render_batch_picker(chat_id, user_id, edit=message_id)
         return
 
@@ -599,9 +691,9 @@ def handle_callback(callback):
         edit_message(
             chat_id,
             message_id,
-            f"📦 *Batch Created Successfully*\n\n"
+            f"📦 <b>Batch Created Successfully</b>\n\n"
             f"📁 Files included: {len(selected)}\n"
-            f"🔗 Share this link:\n{link}\n\n"
+            f"🔗 Share this link:\n{esc(link)}\n\n"
             f"Anyone who opens it will receive all selected files.",
         )
         return
@@ -612,12 +704,62 @@ def handle_callback(callback):
         edit_message(chat_id, message_id, "❌ Batch build cancelled.")
         return
 
+    if data == "clearall_ask":
+        answer_callback(callback_id)
+        files = get_json(f"files:{uid}", [])
+        if not files:
+            edit_message(chat_id, message_id, "📭 No files to delete.")
+            return
+        markup = kb(
+            [[btn("✅ Yes, delete all", "clearall_yes"), btn("❌ No, cancel", "clearall_no")]]
+        )
+        edit_message(
+            chat_id,
+            message_id,
+            f"⚠️ Delete all {len(files)} of your saved files? This can't be undone.",
+            reply_markup=markup,
+        )
+        return
+
+    if data == "clearall_yes":
+        answer_callback(callback_id)
+        files = get_json(f"files:{uid}", [])
+        count = len(files)
+        index = get_json("files_index", {})
+        for f in files:
+            index.pop(f["unique_id"], None)
+        set_json("files_index", index)
+        redis_del(f"files:{uid}")
+        edit_message(chat_id, message_id, f"✅ Deleted all {count} files.")
+        return
+
+    if data == "clearall_no":
+        answer_callback(callback_id, "Cancelled")
+        edit_message(chat_id, message_id, "❌ Deletion cancelled. Your files are safe.")
+        return
+
+    if data == "checkjoin":
+        missing = missing_joins(user_id)
+        if missing:
+            answer_callback(callback_id, "You haven't joined everything yet.", show_alert=True)
+            return
+        answer_callback(callback_id, "Access granted!")
+        edit_message(chat_id, message_id, "✅ You're all set! Send /start to begin.")
+        return
+
 
 # ==================== MESSAGE HANDLER ====================
 def handle_message(message):
     chat_id = message["chat"]["id"]
     user_id = message["from"]["id"]
     text = message.get("text", "")
+
+    # Force-join gate: everyone must join the required channel + chat first.
+    if REQUIRED_CHATS:
+        missing = missing_joins(user_id)
+        if missing:
+            send_join_prompt(chat_id, missing)
+            return
 
     if text.startswith("/start"):
         parts = text.split(maxsplit=1)
