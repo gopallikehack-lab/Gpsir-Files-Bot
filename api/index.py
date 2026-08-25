@@ -19,6 +19,12 @@ PREMIUM_USERS = [
     int(x) for x in os.environ.get("PREMIUM_USERS", "").split(",") if x.strip().isdigit()
 ]
 
+# Comma separated numeric Telegram user IDs allowed to use /admin.
+# Your ID is included by default; add more via the ADMIN_USERS env var.
+ADMIN_USERS = [8932695749] + [
+    int(x) for x in os.environ.get("ADMIN_USERS", "").split(",") if x.strip().isdigit()
+]
+
 UPSTASH_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
 UPSTASH_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
@@ -32,6 +38,11 @@ PREMIUM_EMOJIS = {
     "memo":        ("📝", "5258123719401813951"),
     "heart_red":   ("❤️", "5258033752721884482"),
     "check":       ("✅", "6077838869456227983"),
+    "desktop":     ("🖥", "5787638984511328327"),
+    "envelope":    ("✉️", "5282927670932287621"),
+    "card_index":  ("🗂", "5292165466981147510"),
+    "folder":      ("📁", "5998867331554481689"),
+    "floppy":      ("💾", "5364222176255813371"),
 }
 
 DIVIDER = "─" * 22
@@ -93,6 +104,35 @@ def set_json(key, value):
 # ==================== HELPERS ====================
 def is_premium(user_id):
     return int(user_id) in PREMIUM_USERS
+
+
+def is_admin(user_id):
+    return int(user_id) in ADMIN_USERS
+
+
+def record_user_activity(user, is_upload=False):
+    """Tracks every user who has ever touched the bot (even ones blocked
+    by the force-join gate), for the /admin panel. Stored under a single
+    key so it never collides with existing files:*/batches:* data."""
+    uid = str(user.get("id"))
+    all_users = get_json("all_users", {})
+    now = datetime.now().isoformat()
+    entry = all_users.get(uid, {
+        "id": uid,
+        "username": None,
+        "first_name": None,
+        "first_seen": now,
+        "message_count": 0,
+        "upload_count": 0,
+    })
+    entry["username"] = user.get("username")
+    entry["first_name"] = user.get("first_name")
+    entry["last_seen"] = now
+    entry["message_count"] = entry.get("message_count", 0) + 1
+    if is_upload:
+        entry["upload_count"] = entry.get("upload_count", 0) + 1
+    all_users[uid] = entry
+    set_json("all_users", all_users)
 
 
 def generate_id():
@@ -331,7 +371,8 @@ def handle_start(chat_id, user_id, args):
             "/clear – wipe all your files\n",
             "/batch – build a batch\n",
             "/mybatch – your saved batches\n",
-            "/stats – bot statistics\n\n",
+            "/stats – bot statistics\n",
+            "/admin – admin panel\n\n" if is_admin(user_id) else "\n",
             f"{DIVIDER}\n",
             ("heart_black",), f" Developer: {DEVELOPER}",
         )
@@ -552,17 +593,67 @@ def handle_mybatch(chat_id, user_id):
     uid = str(user_id)
     batches = get_json(f"batches:{uid}", [])
     if not batches:
-        send_message(chat_id, "📭 No batches yet.")
+        send_message(chat_id, "📭 No batches yet. Use /batch to create one.")
         return
     bot_username = get_me_username()
-    text = "📦 <b>Your Batches</b>\n\n"
+
+    header, entities = compose(("card_index",), " ", ("bold", "Your Batches"))
+    send_message(chat_id, header, entities=entities)
+
     for b in batches:
         link = f"https://t.me/{bot_username}?start=batch_{b['batch_id']}"
-        text += f"🆔 <code>{esc(b['batch_id'])}</code> – {len(b['files'])} files\n🔗 {esc(link)}\n\n"
-    send_message(chat_id, text)
+        text = (
+            f"🆔 <code>{esc(b['batch_id'])}</code> – {len(b['files'])} files\n"
+            f"🔗 {esc(link)}"
+        )
+        markup = kb([[btn("🗑 Delete This Batch", f"delbatch_{b['batch_id']}")]])
+        send_message(chat_id, text, reply_markup=markup)
 
 
-def handle_stats(chat_id):
+def handle_admin(chat_id, user_id):
+    if not is_admin(user_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+
+    all_users = get_json("all_users", {})
+    files_index = get_json("files_index", {})
+    batches_index = get_json("batches_index", {})
+
+    total_seen = len(all_users)
+    total_files = len(files_index)
+    total_batches = len(batches_index)
+    uploaders = [u for u in all_users.values() if u.get("upload_count", 0) > 0]
+    premium_seen = [u for u in all_users.values() if is_premium(u["id"])]
+
+    header, entities = compose(("desktop",), " ", ("bold", "Admin Panel"))
+    summary = (
+        f"{header}\n{DIVIDER}\n\n"
+        f"👥 Total people who opened the bot: {total_seen}\n"
+        f"📤 People who uploaded at least 1 file: {len(uploaders)}\n"
+        f"👑 Premium users seen: {len(premium_seen)}\n"
+        f"📁 Total files stored: {total_files}\n"
+        f"📦 Total batches: {total_batches}\n"
+    )
+    send_message(chat_id, summary, entities=entities)
+
+    # Most recently active users first
+    recent = sorted(all_users.values(), key=lambda u: u.get("last_seen", ""), reverse=True)[:25]
+    if recent:
+        text = "🖥 <b>Recent Users</b> (latest 25)\n\n"
+        for u in recent:
+            uname = f"@{esc(u['username'])}" if u.get("username") else "(no username)"
+            name = esc(u.get("first_name") or "")
+            premium_tag = " 👑" if is_premium(u["id"]) else ""
+            line = (
+                f"• <code>{u['id']}</code> {uname} {name}{premium_tag}\n"
+                f"  msgs: {u.get('message_count', 0)} | uploads: {u.get('upload_count', 0)} | "
+                f"last seen: {u.get('last_seen', '?')[:16]}\n\n"
+            )
+            if len(text) + len(line) > 3800:
+                text += "... (truncated)"
+                break
+            text += line
+        send_message(chat_id, text)
     index = get_json("files_index", {})
     total_files = len(index)
     owners = set(index.values())
@@ -738,13 +829,35 @@ def handle_callback(callback):
         edit_message(chat_id, message_id, "❌ Deletion cancelled. Your files are safe.")
         return
 
+    if data.startswith("delbatch_"):
+        answer_callback(callback_id)
+        batch_id = data[9:]
+        batches = get_json(f"batches:{uid}", [])
+        batches = [b for b in batches if b["batch_id"] != batch_id]
+        set_json(f"batches:{uid}", batches)
+        index = get_json("batches_index", {})
+        index.pop(batch_id, None)
+        set_json("batches_index", index)
+        edit_message(chat_id, message_id, "✅ Batch deleted. Your files themselves are untouched.")
+        return
+
     if data == "checkjoin":
         missing = missing_joins(user_id)
         if missing:
             answer_callback(callback_id, "You haven't joined everything yet.", show_alert=True)
             return
         answer_callback(callback_id, "Access granted!")
-        edit_message(chat_id, message_id, "✅ You're all set! Send /start to begin.")
+
+        # If they were trying to open a file/batch link before the gate
+        # stopped them, deliver it now automatically instead of making
+        # them click the link a second time.
+        pending_args = get_json(f"pending_start:{uid}", None)
+        if pending_args:
+            redis_del(f"pending_start:{uid}")
+            edit_message(chat_id, message_id, "✅ Verified! Delivering your file(s) now...")
+            handle_start(chat_id, user_id, pending_args)
+        else:
+            edit_message(chat_id, message_id, "✅ You're all set! Send /start to begin.")
         return
 
 
@@ -754,10 +867,21 @@ def handle_message(message):
     user_id = message["from"]["id"]
     text = message.get("text", "")
 
+    is_file_msg = any(k in message for k in ("document", "photo", "video", "audio", "voice"))
+    record_user_activity(message["from"], is_upload=is_file_msg)
+
     # Force-join gate: everyone must join the required channel + chat first.
     if REQUIRED_CHATS:
         missing = missing_joins(user_id)
         if missing:
+            # Remember what they were trying to open so we can deliver it
+            # automatically once they pass verification, instead of making
+            # them click the link again.
+            if text.startswith("/start"):
+                parts = text.split(maxsplit=1)
+                args = parts[1].split() if len(parts) > 1 else []
+                if args:
+                    set_json(f"pending_start:{user_id}", args)
             send_join_prompt(chat_id, missing)
             return
 
@@ -795,6 +919,10 @@ def handle_message(message):
 
     if text.startswith("/stats"):
         handle_stats(chat_id)
+        return
+
+    if text.startswith("/admin"):
+        handle_admin(chat_id, user_id)
         return
 
     # File forwarded to the bot
