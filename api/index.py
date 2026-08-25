@@ -339,7 +339,10 @@ def handle_start(chat_id, user_id, args):
             for file_uid in batch["files"]:
                 _, f = find_file_by_uid(file_uid)
                 if f:
-                    send_document(chat_id, f["file_id"], caption=f"📁 {f['file_name']}")
+                    doc_caption = f"📁 {f['file_name']}"
+                    if f.get("caption"):
+                        doc_caption += f"\n📝 {f['caption']}"
+                    send_document(chat_id, f["file_id"], caption=doc_caption)
             return
 
         _, f = find_file_by_uid(arg)
@@ -347,8 +350,10 @@ def handle_start(chat_id, user_id, args):
             caption = (
                 f"📁 {f['file_name']}\n"
                 f"💾 {format_size(f['file_size'])}\n"
-                f"Powered by {DEVELOPER}"
             )
+            if f.get("caption"):
+                caption += f"📝 {f['caption']}\n"
+            caption += f"Powered by {DEVELOPER}"
             send_document(chat_id, f["file_id"], caption=caption)
         else:
             send_message(chat_id, "❌ File not found.")
@@ -409,11 +414,13 @@ def handle_forwarded_file(chat_id, user_id, message):
 
     files = get_json(f"files:{uid}", [])
     file_uid = generate_id()
+    caption = message.get("caption", "") or ""
     entry = {
         "unique_id": file_uid,
         "file_id": file_obj["file_id"],
         "file_name": fname,
         "file_size": file_obj.get("file_size", 0),
+        "caption": caption,
         "timestamp": datetime.now().isoformat(),
     }
     files.append(entry)
@@ -431,6 +438,7 @@ def handle_forwarded_file(chat_id, user_id, message):
         f"{DIVIDER}\n",
         f"📁 {fname}\n",
         f"💾 {format_size(entry['file_size'])}\n",
+        (f"📝 {caption}\n" if caption else ""),
         f"🔗 {link}\n\n",
         "Use /batch to add this into a multi-file batch link.",
     )
