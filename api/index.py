@@ -326,8 +326,6 @@ def btn(text, callback_data):
 
 # ==================== COMMAND HANDLERS ====================
 def handle_start(chat_id, user_id, args):
-    premium = is_premium(user_id)
-
     if args:
         arg = args[0]
 
@@ -356,46 +354,33 @@ def handle_start(chat_id, user_id, args):
             send_message(chat_id, "❌ File not found.")
         return
 
-    if premium:
-        text, entities = compose(
-            ("thumbs_up",), " ", ("bold", "PREMIUM VAULT"), "\n",
-            f"{DIVIDER}\n\n",
-            "Welcome back, Premium member.\n",
-            "Every feature below is unlocked for you.\n\n",
-            ("memo",), " Forward any file → get an instant link\n",
-            ("check",), " Use /batch to hand-pick files into one shareable link\n\n",
-            ("bold", "Commands"), "\n",
-            "/list – your files\n",
-            "/link <id> – get a link\n",
-            "/delete <id> – delete a file\n",
-            "/clear – wipe all your files\n",
-            "/batch – build a batch\n",
-            "/mybatch – your saved batches\n",
-            "/stats – bot statistics\n",
-            "/admin – admin panel\n\n" if is_admin(user_id) else "\n",
-            f"{DIVIDER}\n",
-            ("heart_black",), f" Developer: {DEVELOPER}",
-        )
-        markup = kb(
-            [
-                [btn("📋 My Files", "list"), btn("📦 Build Batch", "batch")],
-                [btn("👑 Premium Status", "premium"), btn("🗑 Delete All Files", "clearall_ask")],
-            ]
-        )
-        send_message(chat_id, text, entities=entities, reply_markup=markup)
-    else:
-        text = (
-            "🚀 <b>File Share Bot</b>\n\n"
-            "Forward any file to me – I'll give you a shareable link!\n\n"
-            "<b>Commands</b>\n"
-            "/list – your files\n"
-            "/link &lt;id&gt; – get link\n"
-            "/delete &lt;id&gt; – delete a file\n"
-            "/clear – delete all files\n\n"
-            f"⭐ Upgrade to Premium: {esc(DEVELOPER)}"
-        )
-        markup = kb([[btn("📋 My Files", "list"), btn("🗑 Delete All Files", "clearall_ask")]])
-        send_message(chat_id, text, reply_markup=markup)
+    admin_line = "/admin – admin panel\n" if is_admin(user_id) else ""
+
+    text, entities = compose(
+        ("thumbs_up",), " ", ("bold", "GpsirEra File Vault"), "\n",
+        f"{DIVIDER}\n\n",
+        "All features below are free for everyone.\n\n",
+        ("memo",), " Forward any file → get an instant link\n",
+        ("check",), " Use /batch to build a shareable multi-file batch\n\n",
+        ("bold", "Commands"), "\n",
+        "/list – your files\n",
+        "/link <id> – get a link\n",
+        "/delete <id> – delete a file\n",
+        "/clear – wipe all your files\n",
+        "/batch – build a batch\n",
+        "/mybatch – your saved batches\n",
+        "/stats – bot statistics\n",
+        admin_line,
+        f"{DIVIDER}\n",
+        ("heart_black",), f" Developer: {DEVELOPER}",
+    )
+    markup = kb(
+        [
+            [btn("📋 My Files", "list"), btn("📦 Build Batch", "batch")],
+            [btn("🗑 Delete All Files", "clearall_ask")],
+        ]
+    )
+    send_message(chat_id, text, entities=entities, reply_markup=markup)
 
 
 def handle_forwarded_file(chat_id, user_id, message):
@@ -440,30 +425,22 @@ def handle_forwarded_file(chat_id, user_id, message):
 
     bot_username = get_me_username()
     link = f"https://t.me/{bot_username}?start={file_uid}"
-    premium = is_premium(user_id)
 
-    if premium:
-        text, entities = compose(
-            ("check",), " ", ("bold", "File Saved"), "\n",
-            f"{DIVIDER}\n",
-            f"📁 {fname}\n",
-            f"💾 {format_size(entry['file_size'])}\n",
-            f"🔗 {link}\n\n",
-            "Use /batch to add this into a multi-file batch link.",
-        )
-        markup = kb(
-            [
-                [btn("📋 Copy Link", f"copy_{file_uid}")],
-                [btn("📦 Add to Batch", f"addbatch_{file_uid}")],
-            ]
-        )
-        send_message(chat_id, text, entities=entities, reply_markup=markup)
-    else:
-        send_message(
-            chat_id,
-            f"✅ <b>File Saved!</b>\n\n📁 {esc(fname)}\n💾 {format_size(entry['file_size'])}\n🔗 {esc(link)}\n\n"
-            f"⭐ Upgrade to Premium: {esc(DEVELOPER)}",
-        )
+    text, entities = compose(
+        ("check",), " ", ("bold", "File Saved"), "\n",
+        f"{DIVIDER}\n",
+        f"📁 {fname}\n",
+        f"💾 {format_size(entry['file_size'])}\n",
+        f"🔗 {link}\n\n",
+        "Use /batch to add this into a multi-file batch link.",
+    )
+    markup = kb(
+        [
+            [btn("📋 Copy Link", f"copy_{file_uid}")],
+            [btn("📦 Add to Batch", f"addbatch_{file_uid}")],
+        ]
+    )
+    send_message(chat_id, text, entities=entities, reply_markup=markup)
 
 
 def render_file_list(chat_id, user_id, edit=None):
@@ -551,6 +528,16 @@ def render_batch_picker(chat_id, user_id, edit=None):
     uid = str(user_id)
     files = get_json(f"files:{uid}", [])
     selected = get_json(f"pick:{uid}", [])
+    target = redis_get(f"batch_target:{uid}") or "new"
+
+    if target == "new":
+        batches = get_json(f"batches:{uid}", [])
+        title = f"Batch {len(batches) + 1} (new)"
+        finish_label = "📦 Create Batch"
+    else:
+        _, existing = find_batch_by_id(target)
+        title = existing["name"] if existing and existing.get("name") else target
+        finish_label = "💾 Update Batch"
 
     rows = []
     for f in files:
@@ -558,12 +545,12 @@ def render_batch_picker(chat_id, user_id, edit=None):
         label = f"{mark} {f['file_name'][:30]}"
         rows.append([btn(label, f"pick_{f['unique_id']}")])
     rows.append([btn("☑️ Select All", "batchselectall"), btn("⬜ Clear Selection", "batchclearsel")])
-    rows.append([btn("📦 Finish Batch", "finishbatch"), btn("❌ Cancel", "cancelbatch")])
+    rows.append([btn(finish_label, "finishbatch"), btn("❌ Cancel", "cancelbatch")])
 
     text = (
-        f"📦 <b>Build a Batch</b>\n\n"
+        f"📦 <b>Building: {esc(title)}</b>\n\n"
         f"Selected: {len(selected)}/{len(files)}\n"
-        f"Tap files to select/deselect, then press Finish Batch."
+        f"Tap files to select/deselect, then press {esc(finish_label)}."
     )
     markup = kb(rows)
 
@@ -573,23 +560,43 @@ def render_batch_picker(chat_id, user_id, edit=None):
         send_message(chat_id, text, reply_markup=markup)
 
 
-def handle_batch_command(chat_id, user_id):
-    if not is_premium(user_id):
-        send_message(chat_id, f"❌ Premium feature. Contact {DEVELOPER}")
-        return
+def render_batch_menu(chat_id, user_id, edit=None):
+    """Entry point for /batch: choose to start a brand new named batch
+    (Batch 1, Batch 2, Batch 3...) or keep adding files into one that
+    already exists."""
     uid = str(user_id)
     files = get_json(f"files:{uid}", [])
     if not files:
-        send_message(chat_id, "📭 No files to batch. Forward some files first.")
+        msg = "📭 No files to batch. Forward some files first."
+        if edit:
+            edit_message(chat_id, edit, msg)
+        else:
+            send_message(chat_id, msg)
         return
-    set_json(f"pick:{uid}", [])
-    render_batch_picker(chat_id, user_id)
+
+    batches = get_json(f"batches:{uid}", [])
+    rows = [[btn("🆕 Create New Batch", "newbatch")]]
+    for b in batches:
+        name = b.get("name") or b["batch_id"]
+        rows.append([btn(f"➕ Add files to: {name}", f"editbatch_{b['batch_id']}")])
+
+    text = (
+        "📦 <b>Batches</b>\n\n"
+        f"You have {len(batches)} existing batch(es). Create a brand new one, "
+        "or keep adding files into an existing one below."
+    )
+    markup = kb(rows)
+    if edit:
+        edit_message(chat_id, edit, text, reply_markup=markup)
+    else:
+        send_message(chat_id, text, reply_markup=markup)
+
+
+def handle_batch_command(chat_id, user_id):
+    render_batch_menu(chat_id, user_id)
 
 
 def handle_mybatch(chat_id, user_id):
-    if not is_premium(user_id):
-        send_message(chat_id, "❌ Premium only.")
-        return
     uid = str(user_id)
     batches = get_json(f"batches:{uid}", [])
     if not batches:
@@ -602,11 +609,18 @@ def handle_mybatch(chat_id, user_id):
 
     for b in batches:
         link = f"https://t.me/{bot_username}?start=batch_{b['batch_id']}"
+        name = esc(b.get("name") or b["batch_id"])
         text = (
-            f"🆔 <code>{esc(b['batch_id'])}</code> – {len(b['files'])} files\n"
+            f"🗂 <b>{name}</b>\n"
+            f"📁 {len(b['files'])} files\n"
             f"🔗 {esc(link)}"
         )
-        markup = kb([[btn("🗑 Delete This Batch", f"delbatch_{b['batch_id']}")]])
+        markup = kb(
+            [
+                [btn("➕ Add More Files", f"editbatch_{b['batch_id']}")],
+                [btn("🗑 Delete This Batch", f"delbatch_{b['batch_id']}")],
+            ]
+        )
         send_message(chat_id, text, reply_markup=markup)
 
 
@@ -640,32 +654,113 @@ def handle_admin(chat_id, user_id):
     recent = sorted(all_users.values(), key=lambda u: u.get("last_seen", ""), reverse=True)[:25]
     if recent:
         text = "🖥 <b>Recent Users</b> (latest 25)\n\n"
+        admin_rows = []
         for u in recent:
             uname = f"@{esc(u['username'])}" if u.get("username") else "(no username)"
             name = esc(u.get("first_name") or "")
-            premium_tag = " 👑" if is_premium(u["id"]) else ""
             line = (
-                f"• <code>{u['id']}</code> {uname} {name}{premium_tag}\n"
+                f"• <code>{u['id']}</code> {uname} {name}\n"
                 f"  msgs: {u.get('message_count', 0)} | uploads: {u.get('upload_count', 0)} | "
                 f"last seen: {u.get('last_seen', '?')[:16]}\n\n"
             )
-            if len(text) + len(line) > 3800:
-                text += "... (truncated)"
-                break
-            text += line
-        send_message(chat_id, text)
+            if len(text) + len(line) <= 3800:
+                text += line
+                admin_rows.append([btn(f"👁 View files of {u['id']}", f"adminview_{u['id']}")])
+        send_message(chat_id, text, reply_markup=kb(admin_rows) if admin_rows else None)
+
+    send_message(
+        chat_id,
+        "ℹ️ Use <code>/adminfiles &lt;user_id&gt;</code> to view any user's files & links directly.\n"
+        "Use <code>/broadcast &lt;message&gt;</code> to message every user who has opened the bot.",
+    )
+
+
+def handle_stats(chat_id):
     index = get_json("files_index", {})
     total_files = len(index)
     owners = set(index.values())
     total_users = len(owners)
-    premium_count = len([u for u in owners if is_premium(int(u))])
     send_message(
         chat_id,
         f"📊 <b>Bot Statistics</b>\n\n"
-        f"👥 Users: {total_users}\n"
+        f"👥 Users with files stored: {total_users}\n"
         f"📁 Files: {total_files}\n"
-        f"👑 Premium Users: {premium_count}\n"
         f"👨‍💻 Developer: {esc(DEVELOPER)}",
+    )
+
+
+def handle_admin_files(chat_id, admin_id, target_uid):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    target_uid = str(target_uid)
+    files = get_json(f"files:{target_uid}", [])
+    if not files:
+        send_message(chat_id, f"📭 User <code>{esc(target_uid)}</code> has no files stored.")
+        return
+    bot_username = get_me_username()
+    text = f"📁 <b>Files uploaded by</b> <code>{esc(target_uid)}</code> ({len(files)})\n\n"
+    for idx, f in enumerate(files):
+        line = (
+            f"{idx + 1}. {esc(f['file_name'])}\n"
+            f"   💾 {format_size(f['file_size'])}\n"
+            f"   🔗 https://t.me/{bot_username}?start={f['unique_id']}\n\n"
+        )
+        if len(text) + len(line) > 3800:
+            text += "... (truncated)"
+            break
+        text += line
+    send_message(chat_id, text)
+
+
+def handle_admin_batches(chat_id, admin_id, target_uid):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    target_uid = str(target_uid)
+    batches = get_json(f"batches:{target_uid}", [])
+    if not batches:
+        send_message(chat_id, f"📭 User <code>{esc(target_uid)}</code> has no batches.")
+        return
+    bot_username = get_me_username()
+    text = f"📦 <b>Batches created by</b> <code>{esc(target_uid)}</code> ({len(batches)})\n\n"
+    for b in batches:
+        link = f"https://t.me/{bot_username}?start=batch_{b['batch_id']}"
+        name = esc(b.get("name") or b["batch_id"])
+        text += f"🗂 {name} – {len(b['files'])} files\n🔗 {esc(link)}\n\n"
+    send_message(chat_id, text)
+
+
+def handle_broadcast(chat_id, admin_id, message_text):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if not message_text:
+        send_message(chat_id, "❌ Usage: /broadcast <message>")
+        return
+
+    all_users = get_json("all_users", {})
+    if not all_users:
+        send_message(chat_id, "📭 No known users to broadcast to yet.")
+        return
+
+    header, entities = compose(("envelope",), " ", ("bold", "Broadcast"))
+    broadcast_text = f"{header}\n{DIVIDER}\n\n{message_text}"
+
+    sent, failed = 0, 0
+    for target_uid in all_users.keys():
+        try:
+            result = send_message(int(target_uid), broadcast_text, entities=entities)
+            if result.get("ok"):
+                sent += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+
+    send_message(
+        chat_id,
+        f"📢 Broadcast finished.\n✅ Delivered: {sent}\n❌ Failed (blocked bot / invalid): {failed}",
     )
 
 
@@ -692,23 +787,26 @@ def handle_callback(callback):
 
     if data == "batch":
         answer_callback(callback_id)
-        if not is_premium(user_id):
-            edit_message(chat_id, message_id, f"❌ Premium feature. Contact {DEVELOPER}")
-            return
-        files = get_json(f"files:{uid}", [])
-        if not files:
-            edit_message(chat_id, message_id, "📭 No files to batch.")
-            return
+        render_batch_menu(chat_id, user_id, edit=message_id)
+        return
+
+    if data == "newbatch":
+        answer_callback(callback_id)
         set_json(f"pick:{uid}", [])
+        redis_set(f"batch_target:{uid}", "new")
         render_batch_picker(chat_id, user_id, edit=message_id)
         return
 
-    if data == "premium":
+    if data.startswith("editbatch_"):
         answer_callback(callback_id)
-        if is_premium(user_id):
-            edit_message(chat_id, message_id, f"👑 You are a Premium user! Enjoy all features.\nDev: {esc(DEVELOPER)}")
-        else:
-            edit_message(chat_id, message_id, f"⭐ You are a Free user. Upgrade: {esc(DEVELOPER)}")
+        batch_id = data[10:]
+        _, batch = find_batch_by_id(batch_id)
+        if not batch:
+            edit_message(chat_id, message_id, "❌ Batch not found.")
+            return
+        set_json(f"pick:{uid}", list(batch["files"]))
+        redis_set(f"batch_target:{uid}", batch_id)
+        render_batch_picker(chat_id, user_id, edit=message_id)
         return
 
     if data.startswith("copy_"):
@@ -724,9 +822,6 @@ def handle_callback(callback):
         return
 
     if data.startswith("pick_"):
-        if not is_premium(user_id):
-            answer_callback(callback_id, "Premium feature.", show_alert=True)
-            return
         file_uid = data[5:]
         selected = get_json(f"pick:{uid}", [])
         if file_uid in selected:
@@ -739,9 +834,6 @@ def handle_callback(callback):
         return
 
     if data == "batchselectall":
-        if not is_premium(user_id):
-            answer_callback(callback_id, "Premium feature.", show_alert=True)
-            return
         files = get_json(f"files:{uid}", [])
         set_json(f"pick:{uid}", [f["unique_id"] for f in files])
         answer_callback(callback_id, "All files selected")
@@ -749,9 +841,6 @@ def handle_callback(callback):
         return
 
     if data == "batchclearsel":
-        if not is_premium(user_id):
-            answer_callback(callback_id, "Premium feature.", show_alert=True)
-            return
         set_json(f"pick:{uid}", [])
         answer_callback(callback_id, "Selection cleared")
         render_batch_picker(chat_id, user_id, edit=message_id)
@@ -763,35 +852,59 @@ def handle_callback(callback):
         if not selected:
             edit_message(chat_id, message_id, "❌ You didn't select any files. Batch cancelled.")
             redis_del(f"pick:{uid}")
+            redis_del(f"batch_target:{uid}")
             return
-        batch_id = generate_id()
-        batches = get_json(f"batches:{uid}", [])
-        batches.append(
-            {"batch_id": batch_id, "files": selected, "created": datetime.now().isoformat()}
-        )
-        set_json(f"batches:{uid}", batches)
 
-        index = get_json("batches_index", {})
-        index[batch_id] = uid
-        set_json("batches_index", index)
+        target = redis_get(f"batch_target:{uid}") or "new"
+        batches = get_json(f"batches:{uid}", [])
+        bot_username = get_me_username()
+
+        if target == "new":
+            batch_id = generate_id()
+            name = f"Batch {len(batches) + 1}"
+            batches.append(
+                {
+                    "batch_id": batch_id,
+                    "name": name,
+                    "files": selected,
+                    "created": datetime.now().isoformat(),
+                }
+            )
+            set_json(f"batches:{uid}", batches)
+            index = get_json("batches_index", {})
+            index[batch_id] = uid
+            set_json("batches_index", index)
+            action_text = f"<b>{esc(name)}</b> created"
+        else:
+            batch_id = target
+            for b in batches:
+                if b["batch_id"] == batch_id:
+                    b["files"] = selected
+                    name = b.get("name") or batch_id
+                    break
+            else:
+                name = batch_id
+            set_json(f"batches:{uid}", batches)
+            action_text = f"<b>{esc(name)}</b> updated"
 
         redis_del(f"pick:{uid}")
+        redis_del(f"batch_target:{uid}")
 
-        bot_username = get_me_username()
         link = f"https://t.me/{bot_username}?start=batch_{batch_id}"
         edit_message(
             chat_id,
             message_id,
-            f"📦 <b>Batch Created Successfully</b>\n\n"
+            f"📦 {action_text} successfully!\n\n"
             f"📁 Files included: {len(selected)}\n"
             f"🔗 Share this link:\n{esc(link)}\n\n"
-            f"Anyone who opens it will receive all selected files.",
+            f"Anyone who opens it will receive all files in this batch.",
         )
         return
 
     if data == "cancelbatch":
         answer_callback(callback_id)
         redis_del(f"pick:{uid}")
+        redis_del(f"batch_target:{uid}")
         edit_message(chat_id, message_id, "❌ Batch build cancelled.")
         return
 
@@ -839,6 +952,15 @@ def handle_callback(callback):
         index.pop(batch_id, None)
         set_json("batches_index", index)
         edit_message(chat_id, message_id, "✅ Batch deleted. Your files themselves are untouched.")
+        return
+
+    if data.startswith("adminview_"):
+        answer_callback(callback_id)
+        if not is_admin(user_id):
+            edit_message(chat_id, message_id, "❌ Admins only.")
+            return
+        target_uid = data[10:]
+        handle_admin_files(chat_id, user_id, target_uid)
         return
 
     if data == "checkjoin":
@@ -919,6 +1041,28 @@ def handle_message(message):
 
     if text.startswith("/stats"):
         handle_stats(chat_id)
+        return
+
+    if text.startswith("/broadcast"):
+        parts = text.split(maxsplit=1)
+        broadcast_msg = parts[1] if len(parts) > 1 else ""
+        handle_broadcast(chat_id, user_id, broadcast_msg)
+        return
+
+    if text.startswith("/adminfiles"):
+        parts = text.split()
+        if len(parts) > 1:
+            handle_admin_files(chat_id, user_id, parts[1])
+        else:
+            send_message(chat_id, "❌ Usage: /adminfiles <user_id>")
+        return
+
+    if text.startswith("/adminbatches"):
+        parts = text.split()
+        if len(parts) > 1:
+            handle_admin_batches(chat_id, user_id, parts[1])
+        else:
+            send_message(chat_id, "❌ Usage: /adminbatches <user_id>")
         return
 
     if text.startswith("/admin"):
