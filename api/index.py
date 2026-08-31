@@ -54,16 +54,19 @@ REQUIRED_CHATS = [
         "chat_id": -1004485651677,
         "title": "GpsirEra Community",
         "url": "https://t.me/Black_hats_ops",
+        "request_based": False,
     },
     {
         "chat_id": -1003927824087,
         "title": "GpsirEra Community | Chat",
         "url": "https://t.me/+VXs73pFfyEphMzJl",
+        "request_based": True,
     },
     {
         "chat_id": -1004297567227,
         "title": "GpsirEra Community | Channel",
         "url": "https://t.me/+0w8ATlAukVA1MWU1",
+        "request_based": True,
     },
 ]
 
@@ -280,18 +283,35 @@ def find_file_by_uid(uid):
     return None, None
 
 
+def is_actual_member(chat_id, user_id):
+    try:
+        r = tg("getChatMember", {"chat_id": chat_id, "user_id": user_id})
+        status = r.get("result", {}).get("status")
+        return status in ("member", "administrator", "creator")
+    except Exception:
+        return False
+
+
+def has_pending_request(chat_id, user_id):
+    """True if we've recorded a chat_join_request from this user for this
+    chat, even if you (the admin) haven't approved it yet."""
+    requested = get_json(f"join_requests:{chat_id}", [])
+    return user_id in requested
+
+
 def missing_joins(user_id):
-    """Returns the list of required chats the user has NOT joined yet.
-    Empty list = fully joined, gate passes."""
+    """Returns the list of required chats the user has NOT satisfied yet.
+    Empty list = gate passes. For request_based chats, having SENT a join
+    request is enough — approval isn't required."""
     missing = []
     for ch in REQUIRED_CHATS:
-        try:
-            r = tg("getChatMember", {"chat_id": ch["chat_id"], "user_id": user_id})
-            status = r.get("result", {}).get("status")
-            if status not in ("member", "administrator", "creator"):
-                missing.append(ch)
-        except Exception:
-            missing.append(ch)
+        if ch.get("request_based"):
+            if has_pending_request(ch["chat_id"], user_id) or is_actual_member(ch["chat_id"], user_id):
+                continue
+        else:
+            if is_actual_member(ch["chat_id"], user_id):
+                continue
+        missing.append(ch)
     return missing
 
 
@@ -1092,6 +1112,18 @@ def handle_message(message):
         return
 
 
+def handle_join_request(jr):
+    """Records that a user sent a join request to a required chat, so
+    they can pass the force-join gate even before you approve them."""
+    chat_id = jr["chat"]["id"]
+    user_id = jr["from"]["id"]
+    key = f"join_requests:{chat_id}"
+    requested = get_json(key, [])
+    if user_id not in requested:
+        requested.append(user_id)
+        set_json(key, requested)
+
+
 # ==================== WEBHOOK ROUTE ====================
 @app.route("/api/index", methods=["POST"])
 def webhook():
@@ -1101,6 +1133,8 @@ def webhook():
         handle_message(update["message"])
     elif "callback_query" in update:
         handle_callback(update["callback_query"])
+    elif "chat_join_request" in update:
+        handle_join_request(update["chat_join_request"])
 
     return jsonify({"ok": True})
 
