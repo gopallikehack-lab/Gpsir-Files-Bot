@@ -60,6 +60,11 @@ REQUIRED_CHATS = [
         "title": "GpsirEra Community | Chat",
         "url": "https://t.me/+VXs73pFfyEphMzJl",
     },
+    {
+        "chat_id": -1004297567227,
+        "title": "GpsirEra Community | Channel",
+        "url": "https://t.me/+0w8ATlAukVA1MWU1",
+    },
 ]
 
 # ==================== REDIS (Upstash REST) ====================
