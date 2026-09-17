@@ -65,7 +65,7 @@ REQUIRED_CHATS = [
     {
         "chat_id": -1004297567227,
         "title": "GpsirEra Community | Channel",
-        "url": "https://t.me/+j4zbK6kce_42Yzg1",
+        "url": "https://t.me/+JnxnXtxpsmg2MjBl",
         "request_based": True,
     },
 ]
