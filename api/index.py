@@ -3,7 +3,7 @@ import json
 import html
 import base64
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, request, jsonify
@@ -340,6 +340,92 @@ def find_batch_by_id(batch_id):
     return None, None
 
 
+# ==================== LINK EXPIRY & SUPER PRIVATE (VIEW-LIMITED) LINKS ====================
+def parse_duration(s):
+    """Parses '30m', '2h', '1d' into a timedelta. Returns None if invalid."""
+    s = s.strip().lower()
+    if len(s) < 2:
+        return None
+    unit = s[-1]
+    num_part = s[:-1]
+    if not num_part.replace(".", "", 1).isdigit():
+        return None
+    num = float(num_part)
+    if unit == "m":
+        return timedelta(minutes=num)
+    if unit == "h":
+        return timedelta(hours=num)
+    if unit == "d":
+        return timedelta(days=num)
+    return None
+
+
+def find_link_by_id(link_id):
+    """A link_id might be a file's unique_id or a batch_id - admin commands
+    accept either. Returns (kind, owner, entry) where kind is 'file' or
+    'batch', or (None, None, None) if nothing matches."""
+    owner, f = find_file_by_uid(link_id)
+    if f:
+        return "file", owner, f
+    owner, b = find_batch_by_id(link_id)
+    if b:
+        return "batch", owner, b
+    return None, None, None
+
+
+def update_file_entry(owner, uid, updates):
+    files = get_json(f"files:{owner}", [])
+    for f in files:
+        if f["unique_id"] == uid:
+            f.update(updates)
+            break
+    set_json(f"files:{owner}", files)
+
+
+def update_batch_entry(owner, batch_id, updates):
+    batches = get_json(f"batches:{owner}", [])
+    for b in batches:
+        if b["batch_id"] == batch_id:
+            b.update(updates)
+            break
+    set_json(f"batches:{owner}", batches)
+
+
+def check_and_record_access(kind, owner, entry, viewer_id):
+    """Checks expiry + view-limit ('Super Private Link') for a file or
+    batch. If access is allowed, records this view (increments the
+    counter, logs the viewer for the admin) and returns (True, None).
+    If blocked, returns (False, <message to show the viewer>)."""
+    expires_at = entry.get("expires_at")
+    if expires_at:
+        try:
+            if datetime.now() > datetime.fromisoformat(expires_at):
+                return False, "❌ This link has expired."
+        except Exception:
+            pass
+
+    view_limit = entry.get("view_limit")
+    if view_limit:
+        view_count = entry.get("view_count", 0)
+        if view_count >= view_limit:
+            return False, (
+                "🔒 This is a Super Private Link and it has expired — "
+                f"all {view_limit} allowed view(s) have already been used."
+            )
+
+    viewers = entry.get("viewers", [])
+    viewers.append({"user_id": viewer_id, "viewed_at": datetime.now().isoformat()})
+    updates = {"view_count": entry.get("view_count", 0) + 1, "viewers": viewers}
+
+    link_id = entry.get("unique_id") if kind == "file" else entry.get("batch_id")
+    if kind == "file":
+        update_file_entry(owner, link_id, updates)
+    else:
+        update_batch_entry(owner, link_id, updates)
+
+    return True, None
+
+
 # ==================== KEYBOARDS ====================
 def kb(rows):
     return {"inline_keyboard": rows}
@@ -356,22 +442,37 @@ def handle_start(chat_id, user_id, args):
 
         if arg.startswith("batch_"):
             batch_id = arg[6:]
-            _, batch = find_batch_by_id(batch_id)
+            owner, batch = find_batch_by_id(batch_id)
             if not batch:
                 send_message(chat_id, "❌ Batch not found or expired.")
+                return
+            ok, err = check_and_record_access("batch", owner, batch, user_id)
+            if not ok:
+                send_message(chat_id, err)
                 return
             send_message(chat_id, f"📦 Sending {len(batch['files'])} files...")
             for file_uid in batch["files"]:
                 _, f = find_file_by_uid(file_uid)
                 if f:
+                    if f.get("type") == "text":
+                        send_message(chat_id, f"📝 {f.get('file_name', 'Note')}\n\n{f.get('content', '')}")
+                        continue
                     doc_caption = f"📁 {f['file_name']}"
                     if f.get("caption"):
                         doc_caption += f"\n📝 {f['caption']}"
                     send_document(chat_id, f["file_id"], caption=doc_caption)
             return
 
-        _, f = find_file_by_uid(arg)
+        owner, f = find_file_by_uid(arg)
         if f:
+            ok, err = check_and_record_access("file", owner, f, user_id)
+            if not ok:
+                send_message(chat_id, err)
+                return
+            if f.get("type") == "text":
+                text_out = f"📝 {f.get('content', '')}\n\nPowered by {DEVELOPER}"
+                send_message(chat_id, text_out)
+                return
             caption = (
                 f"📁 {f['file_name']}\n"
                 f"💾 {format_size(f['file_size'])}\n"
@@ -704,7 +805,14 @@ def handle_admin(chat_id, user_id):
     send_message(
         chat_id,
         "ℹ️ Use <code>/adminfiles &lt;user_id&gt;</code> to view any user's files & links directly.\n"
-        "Use <code>/broadcast &lt;message&gt;</code> to message every user who has opened the bot.",
+        "Use <code>/broadcast &lt;message&gt;</code> to message every user who has opened the bot.\n\n"
+        "🔗 <b>Link controls</b> (use a file's or batch's ID, from /adminfiles or /adminbatches):\n"
+        "<code>/setexpiry &lt;id&gt; &lt;30m|2h|1d&gt;</code> — expire a link after a time\n"
+        "<code>/removeexpiry &lt;id&gt;</code> — clear its expiry\n"
+        "<code>/setviews &lt;id&gt; &lt;count&gt;</code> — make it a Super Private Link (max views)\n"
+        "<code>/removeviews &lt;id&gt;</code> — remove the view limit\n"
+        "<code>/linkviewers &lt;id&gt;</code> — see who has opened a link\n"
+        "<code>/newtext &lt;text&gt;</code> — create a shareable link from plain text",
     )
 
 
@@ -762,6 +870,153 @@ def handle_admin_batches(chat_id, admin_id, target_uid):
         name = esc(b.get("name") or b["batch_id"])
         text += f"🗂 {name} – {len(b['files'])} files\n🔗 {esc(link)}\n\n"
     send_message(chat_id, text)
+
+
+def handle_set_expiry(chat_id, admin_id, args):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if len(args) < 2:
+        send_message(chat_id, "❌ Usage: /setexpiry <link_id> <duration e.g. 30m, 2h, 1d>")
+        return
+    link_id, duration_str = args[0], args[1]
+    delta = parse_duration(duration_str)
+    if not delta:
+        send_message(chat_id, "❌ Invalid duration. Use formats like 30m, 2h, 1d.")
+        return
+    kind, owner, entry = find_link_by_id(link_id)
+    if not entry:
+        send_message(chat_id, "❌ Link not found.")
+        return
+    expires_at = (datetime.now() + delta).isoformat()
+    updates = {"expires_at": expires_at}
+    if kind == "file":
+        update_file_entry(owner, entry["unique_id"], updates)
+    else:
+        update_batch_entry(owner, entry["batch_id"], updates)
+    nice_time = expires_at[:16].replace("T", " ")
+    send_message(chat_id, f"⏰ Expiry set on <code>{esc(link_id)}</code>.\nIt will expire at {nice_time}.")
+
+
+def handle_remove_expiry(chat_id, admin_id, args):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if not args:
+        send_message(chat_id, "❌ Usage: /removeexpiry <link_id>")
+        return
+    kind, owner, entry = find_link_by_id(args[0])
+    if not entry:
+        send_message(chat_id, "❌ Link not found.")
+        return
+    updates = {"expires_at": None}
+    if kind == "file":
+        update_file_entry(owner, entry["unique_id"], updates)
+    else:
+        update_batch_entry(owner, entry["batch_id"], updates)
+    send_message(chat_id, "✅ Expiry removed. This link no longer expires by time.")
+
+
+def handle_set_views(chat_id, admin_id, args):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if len(args) < 2 or not args[1].isdigit():
+        send_message(chat_id, "❌ Usage: /setviews <link_id> <max_views>")
+        return
+    link_id, limit = args[0], int(args[1])
+    kind, owner, entry = find_link_by_id(link_id)
+    if not entry:
+        send_message(chat_id, "❌ Link not found.")
+        return
+    updates = {"view_limit": limit}
+    if "view_count" not in entry:
+        updates["view_count"] = 0
+    if kind == "file":
+        update_file_entry(owner, entry["unique_id"], updates)
+    else:
+        update_batch_entry(owner, entry["batch_id"], updates)
+    send_message(
+        chat_id,
+        f"🔒 Super Private Link set on <code>{esc(link_id)}</code>.\n"
+        f"Only the first {limit} person(s) to open it will get access.",
+    )
+
+
+def handle_remove_views(chat_id, admin_id, args):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if not args:
+        send_message(chat_id, "❌ Usage: /removeviews <link_id>")
+        return
+    kind, owner, entry = find_link_by_id(args[0])
+    if not entry:
+        send_message(chat_id, "❌ Link not found.")
+        return
+    updates = {"view_limit": None}
+    if kind == "file":
+        update_file_entry(owner, entry["unique_id"], updates)
+    else:
+        update_batch_entry(owner, entry["batch_id"], updates)
+    send_message(chat_id, "✅ View limit removed. This is a normal link again.")
+
+
+def handle_link_viewers(chat_id, admin_id, args):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if not args:
+        send_message(chat_id, "❌ Usage: /linkviewers <link_id>")
+        return
+    kind, owner, entry = find_link_by_id(args[0])
+    if not entry:
+        send_message(chat_id, "❌ Link not found.")
+        return
+    viewers = entry.get("viewers", [])
+    if not viewers:
+        send_message(chat_id, "📭 No one has viewed this link yet.")
+        return
+    text = f"👁 <b>Viewers</b> ({len(viewers)})\n\n"
+    for v in viewers:
+        nice_time = v["viewed_at"][:16].replace("T", " ")
+        text += f"🆔 <code>{esc(v['user_id'])}</code> — {nice_time}\n"
+    send_message(chat_id, text)
+
+
+def handle_new_text(chat_id, admin_id, text_content):
+    if not is_admin(admin_id):
+        send_message(chat_id, "❌ Admins only.")
+        return
+    if not text_content:
+        send_message(chat_id, "❌ Usage: /newtext <your text here>")
+        return
+    uid = str(admin_id)
+    files = get_json(f"files:{uid}", [])
+    file_uid = generate_id()
+    preview_name = (text_content[:30] + "…") if len(text_content) > 30 else text_content
+    entry = {
+        "unique_id": file_uid,
+        "type": "text",
+        "content": text_content,
+        "file_name": preview_name,
+        "file_size": 0,
+        "caption": "",
+        "timestamp": datetime.now().isoformat(),
+    }
+    files.append(entry)
+    set_json(f"files:{uid}", files)
+
+    index = get_json("files_index", {})
+    index[file_uid] = uid
+    set_json("files_index", index)
+
+    bot_username = get_me_username()
+    link = f"https://t.me/{bot_username}?start={file_uid}"
+    send_message(
+        chat_id,
+        f"📝 <b>Text Link Created</b>\n\n{esc(text_content[:200])}\n\n🔗 {esc(link)}",
+    )
 
 
 def handle_broadcast(chat_id, admin_id, message_text):
@@ -1100,6 +1355,32 @@ def handle_message(message):
 
     if text.startswith("/admin"):
         handle_admin(chat_id, user_id)
+        return
+
+    if text.startswith("/setexpiry"):
+        handle_set_expiry(chat_id, user_id, text.split()[1:])
+        return
+
+    if text.startswith("/removeexpiry"):
+        handle_remove_expiry(chat_id, user_id, text.split()[1:])
+        return
+
+    if text.startswith("/setviews"):
+        handle_set_views(chat_id, user_id, text.split()[1:])
+        return
+
+    if text.startswith("/removeviews"):
+        handle_remove_views(chat_id, user_id, text.split()[1:])
+        return
+
+    if text.startswith("/linkviewers"):
+        handle_link_viewers(chat_id, user_id, text.split()[1:])
+        return
+
+    if text.startswith("/newtext"):
+        parts = text.split(maxsplit=1)
+        content = parts[1] if len(parts) > 1 else ""
+        handle_new_text(chat_id, user_id, content)
         return
 
     # File forwarded to the bot
