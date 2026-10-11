@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 # ==================== CONFIG (set these as Vercel Environment Variables) ====================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-DEVELOPER = os.environ.get("DEVELOPER", "@GpsirEra")
+DEVELOPER = os.environ.get("DEVELOPER", "@SeongEra")
 
 # Comma separated numeric Telegram user IDs, e.g. "8932695749,123456789"
 PREMIUM_USERS = [
@@ -43,6 +43,88 @@ PREMIUM_EMOJIS = {
     "card_index":  ("🗂", "5292165466981147510"),
     "folder":      ("📁", "5998867331554481689"),
     "floppy":      ("💾", "5364222176255813371"),
+    # --- newer batch ---
+    "check_a":        ("✔️", "6275845846873412055"),
+    "star_a":         ("⭐️", "6276090329296802466"),
+    "star_b":         ("⭐️", "6275893435111053023"),
+    "check_b":        ("✅", "6276314883071939299"),
+    "star_c":         ("⭐️", "6275806917289841253"),
+    "star_d":         ("⭐️", "6275929942333068649"),
+    "star_e":         ("⭐️", "6275971302868128701"),
+    "star_f":         ("⭐️", "6273559403853517250"),
+    "check_c":        ("✅", "6276009124350138166"),
+    "check_d":        ("✅", "6276254916738552451"),
+    "check_e":        ("✅", "6276238759071586100"),
+    "check_f":        ("✅", "6276164035230569281"),
+    "check_g":        ("✅", "6276173703201952620"),
+    "check_h":        ("✅", "6339148111423739788"),
+    "cross_a":        ("❌", "6337074299349768690"),
+    "check_i":        ("✅", "6276126643245289780"),
+    "check_j":        ("✅", "6276090299232031662"),
+    "check_k":        ("✅", "6276190011192775282"),
+    "check_l":        ("✅", "6276133850200413718"),
+    "check_m":        ("✅", "6276265190300325185"),
+    "pink_heart":     ("🩷", "6336888383100426308"),
+    "check_n":        ("✅", "6338853910458930994"),
+    "cross_b":        ("❌", "6337074578522642080"),
+    "cross_c":        ("❌", "6275999280285094803"),
+    "cross_d":        ("❌", "6273865673676428425"),
+    "cross_e":        ("❌", "6276115154207774402"),
+    "cross_f":        ("❌", "6276025694333966034"),
+    "cross_g":        ("❌", "6276272470269891500"),
+    "warning_a":      ("⚠️", "6337081377455872512"),
+    "warning_b":      ("⚠️", "6275791747465352530"),
+    "warning_c":      ("⚠️", "6276132901012640832"),
+    "chart":          ("📊", "6336963167070984229"),
+    "businessman":    ("👨‍💼", "6275873639606785095"),
+    "money_bag":      ("💰", "6338884189978367024"),
+    "money_mouth_a":  ("🤑", "6275881112849880302"),
+    "money_wings_a":  ("💸", "6276028580551987901"),
+    "money_wings_b":  ("💸", "6337027711839508720"),
+    "starstruck":     ("🤩", "6336565697912510423"),
+    "dollar":         ("💵", "6336788658254780641"),
+    "money_mouth_b":  ("🤑", "6339054416712177543"),
+    "heart_a":        ("❤️", "6276172887158166707"),
+    "heart_b":        ("❤️", "6276220934957307252"),
+    "heart_c":        ("❤", "6275902922693808220"),
+    "sparkle_heart":  ("💖", "6275840074437366659"),
+    "heart_fire":     ("❤️‍🔥", "6276189409897353982"),
+    "heart_d":        ("❤️", "6276135473698051177"),
+    "devil":          ("😈", "6336780965968353744"),
+    "zap":            ("⚡️", "6336932114457435936"),
+    "angry":          ("😡", "6336770640866973087"),
+    "cat_a":          ("🐱", "6339091748567915249"),
+    "gift_a":         ("🎁", "6338851110140254471"),
+    "bat_a":          ("🦇", "6336723164298483006"),
+    "bat_b":          ("🦇", "6339164578328352187"),
+    "bat_c":          ("🦇", "6336900838505583774"),
+    "bat_d":          ("🦇", "6336641766078290717"),
+    "bat_e":          ("🦇", "6336603867286870404"),
+    "cat_b":          ("😺", "6339215031309178286"),
+    "cat_c":          ("😺", "6336818912004412825"),
+    "cat_d":          ("😺", "6336877229070360017"),
+    "rocket_a":       ("🚀", "6276279784599196845"),
+    "rocket_b":       ("🚀", "6276311855119994929"),
+    "check_o":        ("✔️", "6276282773896434467"),
+    "rocket_c":       ("🚀", "6276327209628078918"),
+    "cart":           ("🛒", "6275872969591887000"),
+    "gift_b":         ("🎁", "6276134137963222688"),
+    "gift_c":         ("🎁", "6276192588173154244"),
+    "check_p":        ("✅", "6276085720796893665"),
+    "link_icon":      ("🔗", "6275878213746955453"),
+    "star_g":         ("⭐", "6275781881925473305"),
+    "star_h":         ("⭐", "6275815429915022612"),
+    "star_i":         ("⭐", "6276191574560871499"),
+    "postal_horn":    ("📯", "6276242985319403942"),
+    "check_q":        ("✔️", "6276239815633540328"),
+    "radio_a":        ("🔘", "6276241469195949589"),
+    "radio_b":        ("🔘", "6275811074818184964"),
+    "radio_c":        ("🔘", "6276005757095776702"),
+    "star_j":         ("⭐", "6276302328882533160"),
+    "party":          ("🎉", "6276010683423265379"),
+    "record_btn":     ("⏺", "6276258146553959491"),
+    "arrow_right":    ("➡️", "6336820492552377728"),
+    "question":       ("❓", "6336612732099368492"),
 }
 
 DIVIDER = "─" * 22
@@ -107,6 +189,24 @@ def get_json(key, default):
 
 def set_json(key, value):
     redis_set(key, json.dumps(value))
+
+
+def is_duplicate_update(update_id):
+    """Telegram retries a webhook delivery if the function doesn't respond
+    in time (e.g. a slow /broadcast loop on Vercel's execution limit).
+    Without this guard, a single retry re-runs the ENTIRE handler again -
+    including re-sending a full broadcast to every user. This remembers
+    the last ~500 update_ids so a retried delivery is a safe no-op."""
+    if update_id is None:
+        return False
+    seen = get_json("processed_update_ids", [])
+    if update_id in seen:
+        return True
+    seen.append(update_id)
+    if len(seen) > 500:
+        seen = seen[-500:]
+    set_json("processed_update_ids", seen)
+    return False
 
 
 # ==================== HELPERS ====================
@@ -214,12 +314,12 @@ def esc(s):
     return html.escape(str(s), quote=False)
 
 
-def tg(method, payload):
-    r = requests.post(f"{TELEGRAM_API}/{method}", json=payload, timeout=15)
+def tg(method, payload, timeout=15):
+    r = requests.post(f"{TELEGRAM_API}/{method}", json=payload, timeout=timeout)
     return r.json()
 
 
-def send_message(chat_id, text, entities=None, reply_markup=None, parse_mode="HTML"):
+def send_message(chat_id, text, entities=None, reply_markup=None, parse_mode="HTML", timeout=15):
     payload = {"chat_id": chat_id, "text": text}
     if entities:
         payload["entities"] = entities
@@ -228,7 +328,7 @@ def send_message(chat_id, text, entities=None, reply_markup=None, parse_mode="HT
         payload["parse_mode"] = parse_mode
     if reply_markup:
         payload["reply_markup"] = reply_markup
-    return tg("sendMessage", payload)
+    return tg("sendMessage", payload, timeout=timeout)
 
 
 def edit_message(chat_id, message_id, text, entities=None, reply_markup=None, parse_mode="HTML"):
@@ -256,6 +356,58 @@ def send_document(chat_id, file_id, caption=None):
     if caption:
         payload["caption"] = caption
     return tg("sendDocument", payload)
+
+
+def send_photo_file(chat_id, file_id, caption=None):
+    payload = {"chat_id": chat_id, "photo": file_id}
+    if caption:
+        payload["caption"] = caption
+    return tg("sendPhoto", payload)
+
+
+def send_video_file(chat_id, file_id, caption=None):
+    payload = {"chat_id": chat_id, "video": file_id}
+    if caption:
+        payload["caption"] = caption
+    return tg("sendVideo", payload)
+
+
+def send_audio_file(chat_id, file_id, caption=None):
+    payload = {"chat_id": chat_id, "audio": file_id}
+    if caption:
+        payload["caption"] = caption
+    return tg("sendAudio", payload)
+
+
+def send_voice_file(chat_id, file_id, caption=None):
+    payload = {"chat_id": chat_id, "voice": file_id}
+    if caption:
+        payload["caption"] = caption
+    return tg("sendVoice", payload)
+
+
+def deliver_file(chat_id, entry):
+    """Sends a stored file back to a user via the SAME Bot API method it
+    came in as. The old code always used sendDocument, which silently
+    fails (or mis-renders) for a photo's file_id - photo/video/audio/voice
+    file_id values are scoped to their own type on Telegram's servers and
+    sendDocument expects a document-type reference. This is what broke
+    photo links."""
+    file_type = entry.get("file_type", "document")
+    caption = f"📁 {entry['file_name']}\n💾 {format_size(entry['file_size'])}\n"
+    if entry.get("caption"):
+        caption += f"📝 {entry['caption']}\n"
+    caption += f"Powered by {DEVELOPER}"
+
+    if file_type == "photo":
+        return send_photo_file(chat_id, entry["file_id"], caption=caption)
+    if file_type == "video":
+        return send_video_file(chat_id, entry["file_id"], caption=caption)
+    if file_type == "audio":
+        return send_audio_file(chat_id, entry["file_id"], caption=caption)
+    if file_type == "voice":
+        return send_voice_file(chat_id, entry["file_id"], caption=caption)
+    return send_document(chat_id, entry["file_id"], caption=caption)
 
 
 def get_me_username():
@@ -457,10 +609,7 @@ def handle_start(chat_id, user_id, args):
                     if f.get("type") == "text":
                         send_message(chat_id, f"📝 {f.get('file_name', 'Note')}\n\n{f.get('content', '')}")
                         continue
-                    doc_caption = f"📁 {f['file_name']}"
-                    if f.get("caption"):
-                        doc_caption += f"\n📝 {f['caption']}"
-                    send_document(chat_id, f["file_id"], caption=doc_caption)
+                    deliver_file(chat_id, f)
             return
 
         owner, f = find_file_by_uid(arg)
@@ -473,14 +622,7 @@ def handle_start(chat_id, user_id, args):
                 text_out = f"📝 {f.get('content', '')}\n\nPowered by {DEVELOPER}"
                 send_message(chat_id, text_out)
                 return
-            caption = (
-                f"📁 {f['file_name']}\n"
-                f"💾 {format_size(f['file_size'])}\n"
-            )
-            if f.get("caption"):
-                caption += f"📝 {f['caption']}\n"
-            caption += f"Powered by {DEVELOPER}"
-            send_document(chat_id, f["file_id"], caption=caption)
+            deliver_file(chat_id, f)
         else:
             send_message(chat_id, "❌ File not found.")
         return
@@ -519,21 +661,27 @@ def handle_forwarded_file(chat_id, user_id, message):
 
     file_obj = None
     fname = "file"
+    file_type = "document"
     if "document" in message:
         file_obj = message["document"]
         fname = file_obj.get("file_name", "document")
+        file_type = "document"
     elif "video" in message:
         file_obj = message["video"]
         fname = file_obj.get("file_name", "video.mp4")
+        file_type = "video"
     elif "audio" in message:
         file_obj = message["audio"]
         fname = file_obj.get("file_name", "audio.mp3")
+        file_type = "audio"
     elif "voice" in message:
         file_obj = message["voice"]
         fname = f"voice_{datetime.now().strftime('%H%M%S')}.ogg"
+        file_type = "voice"
     elif "photo" in message:
         file_obj = message["photo"][-1]
         fname = f"photo_{datetime.now().strftime('%H%M%S')}.jpg"
+        file_type = "photo"
     else:
         send_message(chat_id, "❌ Unsupported file type!")
         return
@@ -544,6 +692,7 @@ def handle_forwarded_file(chat_id, user_id, message):
     entry = {
         "unique_id": file_uid,
         "file_id": file_obj["file_id"],
+        "file_type": file_type,
         "file_name": fname,
         "file_size": file_obj.get("file_size", 0),
         "caption": caption,
@@ -565,48 +714,131 @@ def handle_forwarded_file(chat_id, user_id, message):
         f"📁 {fname}\n",
         f"💾 {format_size(entry['file_size'])}\n",
         (f"📝 {caption}\n" if caption else ""),
-        f"🔗 {link}\n\n",
-        "Use /batch to add this into a multi-file batch link.",
+        f"🔗 {link}\n",
     )
     markup = kb(
         [
             [btn("📋 Copy Link", f"copy_{file_uid}")],
             [btn("📦 Add to Batch", f"addbatch_{file_uid}")],
+            [btn("⏰ Set Expiry", f"fileexp_{file_uid}"), btn("🔒 Set View Limit", f"fileviews_{file_uid}")],
         ]
     )
     send_message(chat_id, text, entities=entities, reply_markup=markup)
 
 
-def render_file_list(chat_id, user_id, edit=None):
+FILES_PER_PAGE = 6
+
+
+def render_file_list(chat_id, user_id, page=0, edit=None):
     uid = str(user_id)
     files = get_json(f"files:{uid}", [])
     if not files:
-        text = "📭 No files found."
+        text = "📭 No files found. Forward a file to get started!"
         if edit:
             edit_message(chat_id, edit, text)
         else:
             send_message(chat_id, text)
         return
 
-    bot_username = get_me_username()
-    text = f"📁 <b>Your Files</b> ({len(files)})\n\n"
-    for idx, f in enumerate(files):
-        line = (
-            f"{idx + 1}. {esc(f['file_name'])}\n"
-            f"   💾 {format_size(f['file_size'])}\n"
-            f"   🆔 <code>{esc(f['unique_id'])}</code>\n"
-            f"   🔗 https://t.me/{bot_username}?start={f['unique_id']}\n\n"
-        )
-        if len(text) + len(line) > 3500:
-            text += "... (truncated, use /list again for more)"
-            break
-        text += line
+    total_pages = max(1, (len(files) + FILES_PER_PAGE - 1) // FILES_PER_PAGE)
+    page = max(0, min(page, total_pages - 1))
+    start = page * FILES_PER_PAGE
+    chunk = files[start:start + FILES_PER_PAGE]
 
-    markup = kb([[btn("🗑 Delete All Files", "clearall_ask")]])
+    rows = []
+    for f in chunk:
+        badge = ""
+        if f.get("expires_at"):
+            badge += "⏰"
+        if f.get("view_limit"):
+            badge += "🔒"
+        label = f"{badge} {f['file_name'][:35]}".strip()
+        rows.append([btn(label, f"filemenu_{f['unique_id']}")])
+
+    nav_row = []
+    if page > 0:
+        nav_row.append(btn("⬅️ Prev", f"listpage_{page - 1}"))
+    nav_row.append(btn(f"📄 {page + 1}/{total_pages}", "noop"))
+    if page < total_pages - 1:
+        nav_row.append(btn("Next ➡️", f"listpage_{page + 1}"))
+    rows.append(nav_row)
+    rows.append([btn("🗑 Delete All Files", "clearall_ask")])
+
+    text = (
+        f"📁 <b>Your Files</b> ({len(files)} total)\n\n"
+        "Tap a file to view its link, set an expiry, limit views, or delete it.\n"
+        "⏰ = has expiry · 🔒 = view-limited"
+    )
+    markup = kb(rows)
     if edit:
         edit_message(chat_id, edit, text, reply_markup=markup)
     else:
         send_message(chat_id, text, reply_markup=markup)
+
+
+def render_file_detail(chat_id, user_id, file_uid, edit=None):
+    owner, f = find_file_by_uid(file_uid)
+    if not f:
+        msg = "❌ File not found - it may have been deleted."
+        (edit_message(chat_id, edit, msg) if edit else send_message(chat_id, msg))
+        return
+
+    bot_username = get_me_username()
+    link = f"https://t.me/{bot_username}?start={file_uid}"
+    can_manage = (str(user_id) == owner) or is_admin(user_id)
+
+    extra_lines = ""
+    if f.get("caption"):
+        extra_lines += f"📝 {esc(f['caption'])}\n"
+    if f.get("expires_at"):
+        nice = f["expires_at"][:16].replace("T", " ")
+        extra_lines += f"⏰ Expires: {nice}\n"
+    if f.get("view_limit"):
+        extra_lines += f"🔒 Views used: {f.get('view_count', 0)}/{f['view_limit']}\n"
+
+    text = (
+        f"📁 <b>{esc(f['file_name'])}</b>\n"
+        f"💾 {format_size(f.get('file_size', 0))}\n"
+        f"{extra_lines}"
+        f"🔗 {esc(link)}"
+    )
+
+    rows = [[btn("📋 Copy Link", f"copy_{file_uid}")]]
+    if can_manage:
+        rows.append([btn("📦 Add to Batch", f"addbatch_{file_uid}")])
+        rows.append([btn("⏰ Set Expiry", f"fileexp_{file_uid}"), btn("🔒 Set View Limit", f"fileviews_{file_uid}")])
+        rows.append([btn("🗑 Delete This File", f"filedel_{file_uid}")])
+    rows.append([btn("⬅️ Back to List", "list")])
+
+    markup = kb(rows)
+    if edit:
+        edit_message(chat_id, edit, text, reply_markup=markup)
+    else:
+        send_message(chat_id, text, reply_markup=markup)
+
+
+def render_expiry_menu(chat_id, message_id, file_uid):
+    rows = [
+        [btn("⏱ 30 min", f"setexp_{file_uid}_30m"), btn("🕑 2 hours", f"setexp_{file_uid}_2h")],
+        [btn("📅 1 day", f"setexp_{file_uid}_1d"), btn("📅 7 days", f"setexp_{file_uid}_7d")],
+        [btn("❌ No Expiry", f"setexp_{file_uid}_remove")],
+        [btn("⬅️ Back", f"filemenu_{file_uid}")],
+    ]
+    edit_message(chat_id, message_id, "⏰ Choose an expiry for this link:", reply_markup=kb(rows))
+
+
+def render_views_menu(chat_id, message_id, file_uid):
+    rows = [
+        [btn("👁 1 view", f"setviews_{file_uid}_1"), btn("👁 5 views", f"setviews_{file_uid}_5")],
+        [btn("👁 10 views", f"setviews_{file_uid}_10"), btn("👁 25 views", f"setviews_{file_uid}_25")],
+        [btn("❌ No Limit", f"setviews_{file_uid}_remove")],
+        [btn("⬅️ Back", f"filemenu_{file_uid}")],
+    ]
+    edit_message(
+        chat_id, message_id,
+        "🔒 Make this a Super Private Link - choose the max number of views:",
+        reply_markup=kb(rows),
+    )
 
 
 def handle_link(chat_id, user_id, args):
@@ -738,7 +970,7 @@ def handle_mybatch(chat_id, user_id):
         return
     bot_username = get_me_username()
 
-    header, entities = compose(("card_index",), " ", ("bold", "Your Batches"))
+    header, entities = compose(("gift_a",), " ", ("bold", "Your Batches"))
     send_message(chat_id, header, entities=entities)
 
     for b in batches:
@@ -773,7 +1005,7 @@ def handle_admin(chat_id, user_id):
     uploaders = [u for u in all_users.values() if u.get("upload_count", 0) > 0]
     premium_seen = [u for u in all_users.values() if is_premium(u["id"])]
 
-    header, entities = compose(("desktop",), " ", ("bold", "Admin Panel"))
+    header, entities = compose(("chart",), " ", ("bold", "Admin Panel"))
     summary = (
         f"{header}\n{DIVIDER}\n\n"
         f"👥 Total people who opened the bot: {total_seen}\n"
@@ -1038,7 +1270,10 @@ def handle_broadcast(chat_id, admin_id, message_text):
     sent, failed = 0, 0
     for target_uid in all_users.keys():
         try:
-            result = send_message(int(target_uid), broadcast_text, entities=entities)
+            # Short timeout per recipient - a single slow/unreachable user
+            # must not be able to stall the whole loop toward Vercel's
+            # execution limit (that's what caused the repeat-broadcast bug).
+            result = send_message(int(target_uid), broadcast_text, entities=entities, timeout=5)
             if result.get("ok"):
                 sent += 1
             else:
@@ -1070,7 +1305,94 @@ def handle_callback(callback):
 
     if data == "list":
         answer_callback(callback_id)
-        render_file_list(chat_id, user_id)
+        render_file_list(chat_id, user_id, edit=message_id)
+        return
+
+    if data == "noop":
+        answer_callback(callback_id)
+        return
+
+    if data.startswith("listpage_"):
+        answer_callback(callback_id)
+        page = int(data[9:])
+        render_file_list(chat_id, user_id, page=page, edit=message_id)
+        return
+
+    if data.startswith("filemenu_"):
+        answer_callback(callback_id)
+        file_uid = data[9:]
+        render_file_detail(chat_id, user_id, file_uid, edit=message_id)
+        return
+
+    if data.startswith("fileexp_"):
+        answer_callback(callback_id)
+        file_uid = data[8:]
+        owner, f = find_file_by_uid(file_uid)
+        if not f or not ((str(user_id) == owner) or is_admin(user_id)):
+            edit_message(chat_id, message_id, "❌ You can only manage your own files.")
+            return
+        render_expiry_menu(chat_id, message_id, file_uid)
+        return
+
+    if data.startswith("fileviews_"):
+        answer_callback(callback_id)
+        file_uid = data[10:]
+        owner, f = find_file_by_uid(file_uid)
+        if not f or not ((str(user_id) == owner) or is_admin(user_id)):
+            edit_message(chat_id, message_id, "❌ You can only manage your own files.")
+            return
+        render_views_menu(chat_id, message_id, file_uid)
+        return
+
+    if data.startswith("setexp_"):
+        answer_callback(callback_id)
+        remainder = data[len("setexp_"):]
+        file_uid, preset = remainder.rsplit("_", 1)  # preset has no underscores, safe from the right
+        owner, f = find_file_by_uid(file_uid)
+        if not f or not ((str(user_id) == owner) or is_admin(user_id)):
+            edit_message(chat_id, message_id, "❌ You can only manage your own files.")
+            return
+        if preset == "remove":
+            update_file_entry(owner, file_uid, {"expires_at": None})
+        else:
+            delta = parse_duration(preset)
+            expires_at = (datetime.now() + delta).isoformat()
+            update_file_entry(owner, file_uid, {"expires_at": expires_at})
+        render_file_detail(chat_id, user_id, file_uid, edit=message_id)
+        return
+
+    if data.startswith("setviews_"):
+        answer_callback(callback_id)
+        remainder = data[len("setviews_"):]
+        file_uid, preset = remainder.rsplit("_", 1)
+        owner, f = find_file_by_uid(file_uid)
+        if not f or not ((str(user_id) == owner) or is_admin(user_id)):
+            edit_message(chat_id, message_id, "❌ You can only manage your own files.")
+            return
+        if preset == "remove":
+            update_file_entry(owner, file_uid, {"view_limit": None})
+        else:
+            updates = {"view_limit": int(preset)}
+            if "view_count" not in f:
+                updates["view_count"] = 0
+            update_file_entry(owner, file_uid, updates)
+        render_file_detail(chat_id, user_id, file_uid, edit=message_id)
+        return
+
+    if data.startswith("filedel_"):
+        answer_callback(callback_id)
+        file_uid = data[8:]
+        owner, f = find_file_by_uid(file_uid)
+        if not f or not ((str(user_id) == owner) or is_admin(user_id)):
+            edit_message(chat_id, message_id, "❌ You can only delete your own files.")
+            return
+        files = get_json(f"files:{owner}", [])
+        files = [x for x in files if x["unique_id"] != file_uid]
+        set_json(f"files:{owner}", files)
+        index = get_json("files_index", {})
+        index.pop(file_uid, None)
+        set_json("files_index", index)
+        edit_message(chat_id, message_id, "✅ File deleted.")
         return
 
     if data == "batch":
@@ -1080,9 +1402,33 @@ def handle_callback(callback):
 
     if data == "newbatch":
         answer_callback(callback_id)
+        edit_message(
+            chat_id,
+            message_id,
+            "📦 Name this batch:",
+            reply_markup=kb(
+                [
+                    [btn("🏷 Custom Name", "newbatch_custom")],
+                    [btn("🔢 Default Name (Batch N)", "newbatch_default")],
+                ]
+            ),
+        )
+        return
+
+    if data == "newbatch_default":
+        answer_callback(callback_id)
         set_json(f"pick:{uid}", [])
         redis_set(f"batch_target:{uid}", "new")
+        redis_del(f"batch_custom_name:{uid}")
         render_batch_picker(chat_id, user_id, edit=message_id)
+        return
+
+    if data == "newbatch_custom":
+        answer_callback(callback_id)
+        set_json(f"pick:{uid}", [])
+        redis_set(f"batch_target:{uid}", "new")
+        redis_set(f"awaiting_batch_name:{uid}", "1")
+        edit_message(chat_id, message_id, "✏️ Send the name you want for this batch.")
         return
 
     if data.startswith("editbatch_"):
@@ -1149,7 +1495,9 @@ def handle_callback(callback):
 
         if target == "new":
             batch_id = generate_id()
-            name = f"Batch {len(batches) + 1}"
+            custom_name = redis_get(f"batch_custom_name:{uid}")
+            name = custom_name if custom_name else f"Batch {len(batches) + 1}"
+            redis_del(f"batch_custom_name:{uid}")
             batches.append(
                 {
                     "batch_id": batch_id,
@@ -1280,6 +1628,14 @@ def handle_message(message):
     is_file_msg = any(k in message for k in ("document", "photo", "video", "audio", "voice"))
     record_user_activity(message["from"], is_upload=is_file_msg)
 
+    # If this user is mid-flow providing a custom batch name, capture it
+    # here before any other routing.
+    if text and redis_get(f"awaiting_batch_name:{user_id}"):
+        redis_del(f"awaiting_batch_name:{user_id}")
+        redis_set(f"batch_custom_name:{user_id}", text.strip()[:60])
+        render_batch_picker(chat_id, user_id)
+        return
+
     # Force-join gate: everyone must join the required channel + chat first.
     if REQUIRED_CHATS:
         missing = missing_joins(user_id)
@@ -1389,7 +1745,17 @@ def handle_message(message):
         return
 
     if any(k in message for k in ("document", "photo", "video", "audio", "voice")):
-        send_message(chat_id, "❌ Please *forward* a file to me (not send it directly)!")
+        send_message(
+            chat_id,
+            "❌ <b>Please forward this file instead of sending it directly.</b>\n\n"
+            "Here's the easiest way:\n"
+            "1️⃣ Open the chat with the file (or find it in any chat)\n"
+            "2️⃣ Long-press it → <b>Forward</b> → choose <b>Saved Messages</b>\n"
+            "3️⃣ Open <b>Saved Messages</b>, find it there\n"
+            "4️⃣ Long-press it again → <b>Forward</b> → send it to me\n\n"
+            "This keeps the file's original quality and lets me generate a "
+            "proper shareable link for it.",
+        )
         return
 
 
@@ -1409,6 +1775,9 @@ def handle_join_request(jr):
 @app.route("/api/index", methods=["POST"])
 def webhook():
     update = request.get_json(force=True, silent=True) or {}
+
+    if is_duplicate_update(update.get("update_id")):
+        return jsonify({"ok": True})
 
     if "message" in update:
         handle_message(update["message"])
