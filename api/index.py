@@ -135,7 +135,7 @@ REQUIRED_CHATS = [
     {
         "chat_id": -1004485651677,
         "title": "GpsirEra Community",
-        "url": "https://t.me/Black_hats_ops",
+        "url": "https://t.me/Black_hats_op",
         "request_based": False,
     },
     {
